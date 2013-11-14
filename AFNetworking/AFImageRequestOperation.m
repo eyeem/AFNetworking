@@ -37,6 +37,13 @@ static dispatch_queue_t image_request_operation_processing_queue() {
 #elif __MAC_OS_X_VERSION_MIN_REQUIRED 
 @property (readwrite, nonatomic, strong) NSImage *responseImage;
 #endif
+
+/**
+ When a request is cancelled after it's finished, this flag prevents the
+ imageProcessingBlock being executed
+ */
+@property (nonatomic, assign) BOOL discardProcessImageBlock;
+
 @end
 
 @implementation AFImageRequestOperation
@@ -83,7 +90,9 @@ static dispatch_queue_t image_request_operation_processing_queue() {
                     UIImage *processedImage = imageProcessingBlock(image);
 
                     dispatch_async(requestOperation.successCallbackQueue ?: dispatch_get_main_queue(), ^(void) {
-                        success(operation.request, operation.response, processedImage);
+						if (![requestOperation discardProcessImageBlock]) {
+							success(operation.request, operation.response, processedImage);
+						}
                     });
                 });
             } else {
@@ -232,6 +241,12 @@ static dispatch_queue_t image_request_operation_processing_queue() {
         });        
     };
 #pragma clang diagnostic pop
+}
+
+- (void)cancel
+{
+	self.discardProcessImageBlock = YES;
+	[super cancel];
 }
 
 @end
